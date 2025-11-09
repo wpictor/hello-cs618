@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: ${{ steps.deploy-frontend.outputs.url }}
+      url: ${{ steps.get-frontend-url.outputs.url }}
     steps:
       - uses: actions/checkout@v3
       - name: Login to Docker Hub
@@ -19,7 +19,7 @@ jobs:
       - uses: google-github-actions/auth@v1
         with:
           service_account: ${{ secrets.GOOGLECLOUD_SERVICE_ACCOUNT }}
-          credentials_json: ${{ secrets.GOOGLECLOUD_CREDENTIALS}}
+          credentials_json: ${{ secrets.GOOGLECLOUD_CREDENTIALS }}
       - name: Build and push backend image
         uses: docker/build-push-action@v4
         with:
@@ -34,14 +34,21 @@ jobs:
           service: blog-backend
           image: ${{ secrets.DOCKERHUB_USERNAME }}/blogbackend:latest
           region: ${{ secrets.GOOGLECLOUD_REGION }}
+      - name: Get backend URL
+        id: get-backend-url
+        run: |
+          BACKEND_URL=$(gcloud run services describe blog-backend \
+            --region=${{ secrets.GOOGLECLOUD_REGION }} \
+            --format='value(status.url)')
+          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
       - name: Build and push frontend image
         uses: docker/build-push-action@v4
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./frontend
+          file: ./frontend/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
-          build-args: VITE_BACKEND_URL=${{ steps.deploy-backend.outputs.url }}/api/v1
+          build-args: VITE_BACKEND_URL=${{ steps.get-backend-url.outputs.url }}/api/v1
       - id: deploy-frontend
         name: Deploy frontend
         uses: google-github-actions/deploy-cloudrun@v1
@@ -49,3 +56,10 @@ jobs:
           service: blog-frontend
           image: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
           region: ${{ secrets.GOOGLECLOUD_REGION }}
+      - name: Get frontend URL
+        id: get-frontend-url
+        run: |
+          FRONTEND_URL=$(gcloud run services describe blog-frontend \
+            --region=${{ secrets.GOOGLECLOUD_REGION }} \
+            --format='value(status.url)')
+          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
