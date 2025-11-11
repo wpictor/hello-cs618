@@ -49,6 +49,8 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
           build-args: VITE_BACKEND_URL=${{ steps.get-backend-url.outputs.url }}/api/v1
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/blogfrontend:latest
+          cache-to: type=inline
           no-cache: true
       - id: deploy-frontend
         name: Deploy frontend
